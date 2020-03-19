@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/user"
 )
 
 const (
-	PORT_DEFAULT = "31031"
+	PORT_DEFAULT    = "31031"
+	CREDENTIALS_DIR = ".termchat/credentials"
 )
 
 // Print a help message, describing the usage of the program.
@@ -27,7 +29,28 @@ func send_message(msg string, conn *net.Conn) (response string) {
 	return
 }
 
-// Parse the command line options.
+// Read the credentials from a user.
+// Expects username to be the first string in a file
+// and password the second string.
+func read_credentials(filename string) (username string, password string, err error) {
+	username = ""
+	password = ""
+
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Println("Fail")
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	username = scanner.Text()
+	scanner.Scan()
+	password = scanner.Text()
+	return
+}
+
 func main() {
 	args := os.Args
 	if len(args) < 4 {
@@ -35,9 +58,9 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Parse the command line options.
 	port := flag.String("p", PORT_DEFAULT, "[port][default: "+string(PORT_DEFAULT)+"]")
 	help := flag.Bool("h", false, "[help][display a help message]")
-
 	flag.Parse()
 
 	if *help == true {
@@ -49,9 +72,17 @@ func main() {
 	recipient := os.Args[2]
 	message := os.Args[3]
 
-	// TODO: read credentials from configuration.
-	username := "joe"
-	password := "secret"
+	usr, err := user.Current()
+	if err != nil {
+		fmt.Printf("Failed to locate home directory")
+		os.Exit(1)
+	}
+
+	username, password, err := read_credentials(usr.HomeDir + "/" + CREDENTIALS_DIR + "/" + server + ".conf")
+	if err != nil {
+		fmt.Printf("Please store your credentials in ~/.termchat/credentials/<server_adres>.conf")
+		os.Exit(1)
+	}
 
 	conn, err := net.Dial("tcp", server+":"+*port)
 	if err != nil {
