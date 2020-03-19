@@ -17,6 +17,16 @@ func print_help() {
 	fmt.Println("usage: send [-h] [-p port] server_adres username message")
 }
 
+// Send a message over a tcp connection and wait for a response.
+func send_message(msg string, conn *net.Conn) (response string) {
+	fmt.Fprintf(*conn, msg)
+	response, err := bufio.NewReader(*conn).ReadString('\n')
+	if err != nil {
+		response = "error"
+	}
+	return
+}
+
 // Parse the command line options.
 func main() {
 	args := os.Args
@@ -39,23 +49,20 @@ func main() {
 	recipient := os.Args[2]
 	message := os.Args[3]
 
-	fmt.Println(*port, recipient, server, message)
+	// TODO: read credentials from configuration.
+	username := "joe"
+	password := "secret"
 
 	conn, err := net.Dial("tcp", server+":"+*port)
-
 	if err != nil {
 		fmt.Printf("Failed to establish a connection with %s:%s\n", server, *port)
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(conn, message+"\n")
-	response, err := bufio.NewReader(conn).ReadString('\n')
-
-	if err != nil {
-		fmt.Printf("Failed to communicate with %s:%s\n", server, *port)
-		os.Exit(1)
-	}
-	os.Exit(1)
-
-	fmt.Println(response)
+	fmt.Println(send_message("login", &conn))
+	fmt.Println(send_message("name="+username, &conn))
+	fmt.Println(send_message("pass="+password, &conn))
+	fmt.Println(send_message("send", &conn))
+	fmt.Println(send_message("recipient="+recipient, &conn))
+	fmt.Println(send_message("message="+message, &conn))
 }
