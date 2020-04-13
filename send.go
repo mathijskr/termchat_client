@@ -12,15 +12,16 @@ import (
 const (
 	PORT_DEFAULT    = "31031"
 	CREDENTIALS_DIR = ".termchat/credentials"
+	DELIMITER       = "\x00"
 )
 
 // Print a help message, describing the usage of the program.
 func print_help() {
-	fmt.Println("usage: send [-h] [-p port] server_adres username message")
+	fmt.Println("usage: send [-h] [-s] [-p port] server_adres username message")
 }
 
 // Send a message over a tcp connection and wait for a response.
-func send_message(msg string, conn *net.Conn) (response string) {
+func send_packet(msg string, conn *net.Conn) (response string) {
 	fmt.Fprintf(*conn, msg)
 	response, err := bufio.NewReader(*conn).ReadString('\n')
 	if err != nil {
@@ -38,7 +39,7 @@ func read_credentials(filename string) (username string, password string, err er
 
 	file, err := os.Open(filename)
 	if err != nil {
-		fmt.Println("Fail")
+		fmt.Println(err)
 		return
 	}
 	defer file.Close()
@@ -51,49 +52,92 @@ func read_credentials(filename string) (username string, password string, err er
 	return
 }
 
-func main() {
-	args := os.Args
-	if len(args) < 4 {
-		print_help()
-		os.Exit(0)
-	}
+// Format the signup packet according to the format the server understands.
+func format_signup_packet(username string, password string) (format string) {
+	format = "signup:name=" + username + DELIMITER + "pass=" + password
+	return
+}
 
+// Format the message packet according to the format the server understands.
+func format_message_packet(username string, password string, receiver string, body string) (format string) {
+	format = "send:name=" + username + DELIMITER +
+		"pass=" + password + DELIMITER +
+		"receiver=" + receiver + DELIMITER +
+		"body=" + body
+	return
+}
+
+// Format the read packet according to the format the server understands.
+func format_read_packet(username string, password string, contact string) (format string) {
+	format = "read:name=" + username + DELIMITER +
+		"pass=" + password + DELIMITER +
+		"contact=" + contact
+	return
+}
+
+func main() {
 	// Parse the command line options.
-	port := flag.String("p", PORT_DEFAULT, "[port][default: "+string(PORT_DEFAULT)+"]")
-	help := flag.Bool("h", false, "[help][display a help message]")
+	port_flag := flag.String(
+		"p", PORT_DEFAULT, "[port][default: "+string(PORT_DEFAULT)+"]",
+	)
+	help_flag := flag.Bool(
+		"h", false, "[help][display a help message]",
+	)
+	read_flag := flag.Bool(
+		"r", false, "[help][read messages sent between you and a contact]",
+	)
+	signup_flag := flag.Bool(
+		"s", false, "[signup][create an account at the server you are connecting to]",
+	)
 	flag.Parse()
 
-	if *help == true {
+	args := flag.Args()
+
+	if len(args) < 3 {
 		print_help()
 		os.Exit(0)
 	}
 
-	server := os.Args[1]
-	recipient := os.Args[2]
-	message := os.Args[3]
+	server := args[0]
+	receiver := args[1]
+	body := args[2]
+
+	if *help_flag {
+		print_help()
+		os.Exit(0)
+	}
 
 	usr, err := user.Current()
 	if err != nil {
-		fmt.Printf("Failed to locate home directory")
+		fmt.Println("Failed to locate home directory")
 		os.Exit(1)
 	}
 
 	username, password, err := read_credentials(usr.HomeDir + "/" + CREDENTIALS_DIR + "/" + server + ".conf")
 	if err != nil {
-		fmt.Printf("Please store your credentials in ~/.termchat/credentials/<server_adres>.conf")
+		fmt.Println("Please store your credentials in ~/.termchat/credentials/<server_adres>.conf")
 		os.Exit(1)
 	}
 
-	conn, err := net.Dial("tcp", server+":"+*port)
+	conn, err := net.Dial("tcp", server+":"+*port_flag)
 	if err != nil {
-		fmt.Printf("Failed to establish a connection with %s:%s\n", server, *port)
+		fmt.Printf("Failed to establish a connection with %s:%s\n", server, *port_flag)
 		os.Exit(1)
 	}
 
-	fmt.Println(send_message("login", &conn))
-	fmt.Println(send_message("name="+username, &conn))
-	fmt.Println(send_message("pass="+password, &conn))
-	fmt.Println(send_message("send", &conn))
-	fmt.Println(send_message("recipient="+recipient, &conn))
-	fmt.Println(send_message("message="+message, &conn))
+	switch {
+	case *signup_flag:
+		fmt.Println("Signing up")
+		signup := format_signup_packet(username, password)
+		fmt.Printf(send_packet(signup, &conn))
+	case *read_flag:
+		fmt.Println("Sending read request")
+		contact := "Banaan"
+		read := format_read_packet(username, password, contact)
+		fmt.Printf(send_packet(read, &conn))
+	default:
+		fmt.Println("Sending message")
+		message := format_message_packet(username, password, receiver, body)
+		fmt.Printf(send_packet(message, &conn))
+	}
 }
