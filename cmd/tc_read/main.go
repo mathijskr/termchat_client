@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/user"
+	"strings"
 
 	tc "github.com/mathijskr/termchat/Client/termchat"
 )
@@ -52,7 +53,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Sending read contacts request")
-	read := tc.FormatReadContactsPacket(username, password)
-	fmt.Printf(tc.SendPacket(read, &conn))
+	//contactsPacket := tc.FormatReadContactsPacket(username, password)
+	readChatPacket := tc.FormatReadChatPacket(username, password, "Banaan")
+	ChatPacket := tc.SendPacket(readChatPacket, &conn)
+	Chat := strings.Split(ChatPacket, "\x00")
+	fmt.Printf("%+q", Chat)
 }
