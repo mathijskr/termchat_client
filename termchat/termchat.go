@@ -13,6 +13,14 @@ const (
 	DELIMITER       = "\x00"
 )
 
+func CheckErr(err error) bool {
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return true
+}
+
 // Send a message over a tcp connection and wait for a response.
 func SendPacket(msg string, conn *net.Conn) (response string) {
 	fmt.Fprintf(*conn, msg)
@@ -60,17 +68,9 @@ func FormatMessagePacket(username string, password string, receiver string, body
 	return
 }
 
-// Format the read chat packet according to the format the server understands.
-func FormatReadChatPacket(username string, password string, contact string) (format string) {
-	format = "read:name=" + username + DELIMITER +
-		"pass=" + password + DELIMITER +
-		"contact=" + contact
-	return
-}
-
 // Format the read contacts packet according to the format the server understands.
 func FormatReadContactsPacket(username string, password string) (format string) {
-	format = "read:name=" + username + DELIMITER +
-		"pass=" + password + DELIMITER
+	format = "contacts:name=" + username + DELIMITER +
+		"pass=" + password
 	return
 }

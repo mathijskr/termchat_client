@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"net"
@@ -14,6 +15,85 @@ import (
 // Print a help message, describing the usage of the program.
 func printHelp() {
 	fmt.Println("usage: read [-h help] [-p port] [-a server_adres]")
+}
+
+// Format the read chat packet according to the format the server understands.
+func FormatReadChatPacket(username string, password string, contact string, timestamp string) (format string) {
+	format = "read:name=" + username + tc.DELIMITER +
+		"pass=" + password + tc.DELIMITER +
+		"contact=" + contact + tc.DELIMITER +
+		"timestamp=" + timestamp
+	return
+}
+
+// Remove the trailing newline and null character.
+func removeTrailing(s string) string {
+	if len(s) > 2 {
+		return s[:len(s)-2]
+	}
+	return ""
+}
+
+// Find the timestamp of the last saved message.
+func lastMessageTimestamp(chatFile *os.File) string {
+	// Find the last locally saved message.
+	scanner := bufio.NewScanner(chatFile)
+	lastMessage := ""
+	for scanner.Scan() {
+		lastMessage = scanner.Text()
+	}
+
+	// Extract the timestamp from the message.
+	timestampIndex := 0
+	for index, c := range lastMessage {
+		if c == ':' {
+			break
+		}
+		timestampIndex = index
+	}
+	if timestampIndex > 0 {
+		return lastMessage[0 : timestampIndex+1]
+	}
+	return "0"
+}
+
+// Update the local chat history for a contact.
+func updateChat(contact string, username string, password string, termchatDir string, conn *net.Conn) {
+	chatFile, err := os.OpenFile(termchatDir+contact, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	if !tc.CheckErr(err) {
+		return
+	}
+
+	defer chatFile.Close()
+
+	timestamp := lastMessageTimestamp(chatFile)
+
+	readChatPacket := FormatReadChatPacket(username, password, contact, timestamp)
+	chatPacket := tc.SendPacket(readChatPacket, conn)
+	chat := strings.Split(removeTrailing(chatPacket), "\x00")
+
+	for _, field := range chat {
+		if strings.HasPrefix(field, "timestamp=") {
+			_, err = chatFile.WriteString(field[len("timestamp="):len(field)] + ":")
+			if !tc.CheckErr(err) {
+				return
+			}
+		}
+		if strings.HasPrefix(field, "sender=") {
+			_, err = chatFile.WriteString(field[len("sender="):len(field)] + ":")
+			if !tc.CheckErr(err) {
+				return
+			}
+		}
+		if strings.HasPrefix(field, "body=") {
+			_, err = chatFile.WriteString(field[len("body="):len(field)] + "\n")
+			if !tc.CheckErr(err) {
+				return
+			}
+		}
+	}
+
+	return
 }
 
 func main() {
@@ -53,9 +133,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	//contactsPacket := tc.FormatReadContactsPacket(username, password)
-	readChatPacket := tc.FormatReadChatPacket(username, password, "Banaan")
-	ChatPacket := tc.SendPacket(readChatPacket, &conn)
-	Chat := strings.Split(ChatPacket, "\x00")
-	fmt.Printf("%+q", Chat)
+	readContactsPacket := tc.FormatReadContactsPacket(username, password)
+	contactsPacket := tc.SendPacket(readContactsPacket, &conn)
+	contacts := strings.Split(removeTrailing(contactsPacket), "\x00")
+
+	// Read chat for every contact.
+	for _, contact := range contacts {
+		updateChat(contact, username, password, usr.HomeDir+"/"+".termchat/", &conn)
+	}
 }
