@@ -141,4 +141,6 @@ func main() {
 	for _, contact := range contacts {
 		updateChat(contact, username, password, usr.HomeDir+"/"+".termchat/", &conn)
 	}
+
+	tc.CloseConnection(&conn)
 }

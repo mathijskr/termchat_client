@@ -74,3 +74,7 @@ func FormatReadContactsPacket(username string, password string) (format string) 
 		"pass=" + password
 	return
 }
+
+func CloseConnection(conn *net.Conn) {
+	SendPacket("quit:", conn)
+}
