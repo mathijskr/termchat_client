@@ -9,7 +9,7 @@ import (
 
 const (
 	PORT_DEFAULT    = "31031"
-	CREDENTIALS_DIR = ".termchat/credentials"
+	CREDENTIALS_DIR = ".config/termchat/credentials"
 	DELIMITER       = "\x00"
 )
 
