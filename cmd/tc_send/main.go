@@ -38,8 +38,9 @@ func main() {
 	flag.Parse()
 
 	if *server == "" ||
-		*receiver == "" ||
-		*body == "" ||
+		((*receiver == "" ||
+			*body == "") &&
+			!*signupFlag) ||
 		*helpFlag {
 		printHelp()
 		os.Exit(0)
@@ -73,4 +74,6 @@ func main() {
 		message := tc.FormatMessagePacket(username, password, *receiver, *body)
 		fmt.Printf(tc.SendPacket(message, &conn))
 	}
+
+	tc.CloseConnection(&conn)
 }
