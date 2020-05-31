@@ -54,7 +54,7 @@ func main() {
 
 	username, password, err := tc.ReadCredentials(usr.HomeDir + "/" + tc.CREDENTIALS_DIR + "/" + *server + ".conf")
 	if err != nil {
-		fmt.Println("Please store your credentials in ~/.termchat/credentials/<server_adres>.conf")
+		fmt.Println("Please store your credentials in ~/.config/termchat/credentials/<server_adres>.conf")
 		os.Exit(1)
 	}
 

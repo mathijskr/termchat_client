@@ -58,8 +58,15 @@ func lastMessageTimestamp(chatFile *os.File) string {
 }
 
 // Update the local chat history for a contact.
-func updateChat(contact string, username string, password string, termchatDir string, conn *net.Conn) {
-	chatFile, err := os.OpenFile(termchatDir+contact, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+func updateChat(contact string, username string, password string, chatDir string, conn *net.Conn) {
+	// Create the chat directory if it doesn't exist.
+	err := os.MkdirAll(chatDir, 0755)
+	if !tc.CheckErr(err) {
+		fmt.Println("Cannot create directory: ", chatDir)
+		return
+	}
+
+	chatFile, err := os.OpenFile(chatDir+"/"+contact, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if !tc.CheckErr(err) {
 		return
 	}
@@ -123,7 +130,7 @@ func main() {
 
 	username, password, err := tc.ReadCredentials(usr.HomeDir + "/" + tc.CREDENTIALS_DIR + "/" + *server + ".conf")
 	if err != nil {
-		fmt.Println("Please store your credentials in ~/.termchat/credentials/<server_adres>.conf")
+		fmt.Println("Please store your credentials in ~/.config/termchat/credentials/<server_adres>.conf")
 		os.Exit(1)
 	}
 
@@ -139,7 +146,9 @@ func main() {
 
 	// Read chat for every contact.
 	for _, contact := range contacts {
-		updateChat(contact, username, password, usr.HomeDir+"/"+".termchat/", &conn)
+		if contact != "" {
+			updateChat(contact, username, password, "chats", &conn)
+		}
 	}
 
 	tc.CloseConnection(&conn)
