@@ -9,7 +9,7 @@ import (
 	"os/user"
 	"strings"
 
-	tc "github.com/mathijskr/termchat/Client/termchat"
+	tc "github.com/mathijskr/termchat_client/termchat"
 )
 
 // Print a help message, describing the usage of the program.
